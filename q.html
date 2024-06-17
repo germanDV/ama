@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ask Away | {{.Title}}</title>
+    <style>
+    .strike {
+      text-decoration: line-through;
+    }
+    </style>
+    <script>
+      window.addEventListener("load", () => {
+        const isHost = "{{.IsHost}}" === "true"
+        const questions = document.getElementById("questions");
+        const askForm = document.getElementById("askForm");
+
+        const RETRY_MS = 3_000;
+        const MAX_RETRIES = 5;
+        let retries = 0;
+        let ws;
+        function connect(roomId) {
+          if (++retries >= MAX_RETRIES) {
+            console.log("Max number of retries reached");
+            alert("Unable to connect to WebSocket");
+            return
+          }
+          if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN)) {
+            console.log("We already have a WS, skipping connection attempt");
+            return
+          }
+          ws = new WebSocket("{{.ServerWS}}");
+          ws.onopen = () => {
+            console.log("WS connection established");
+            retries = 0;
+          };
+          ws.onmessage = (ev) => {
+            handleIncomingMsg(ev.data);
+          };
+          ws.onerror = (ev) => {
+            console.error("WS error:", ev.data);
+            ws.close()
+          };
+          ws.onclose = () => {
+            console.log("WS connection closed, retrying in:", RETRY_MS);
+            setTimeout(() => connect(roomId), RETRY_MS)
+          };
+        }
+        setTimeout(connect, 200);
+
+        function handleIncomingMsg(msgStr) {
+          let msg;
+          try {
+            msg = JSON.parse(msgStr);
+          } catch (err) {
+            console.error(err);
+          }
+          switch (msg.event) {
+            case "new_question":
+              appendQuestion(msg.details);
+              break;
+            case "vote":
+              updateVoteCount(msg.details);
+              break;
+            case "answer":
+              updateAnsweredStatus(msg.details)
+              break;
+            default:
+              console.log("No handler for this event: ", msg);
+          }
+        }
+
+        function appendQuestion(q) {
+          const li = document.createElement("li");
+
+          const span = document.createElement("span");
+          span.textContent = q.question;
+          span.id = `${q.id}-text`;
+
+          const spanCount = document.createElement("span");
+          spanCount.id = `${q.id}-votes`;
+          spanCount.textContent = `(${q.votes})`;
+
+          const button = document.createElement("button");
+          button.id = q.id;
+          if (isHost) {
+            button.textContent = "answer";
+            button.onclick = () => answer(q.id);
+          } else {
+            button.textContent = "upvote";
+            button.onclick = () => upvote(q.id);
+          }
+
+          span.appendChild(spanCount);
+          li.appendChild(span);
+          li.appendChild(button);
+          questions.appendChild(li);
+        }
+
+        function updateVoteCount(q) {
+          const el = document.getElementById(`${q.id}-votes`);
+          if (!el) {
+            console.log(`No DOM element found for question ${q.id}`);
+            return;
+          }
+          el.textContent = `(${q.votes})`;
+        }
+
+        function updateAnsweredStatus(q) {
+          const el = document.getElementById(`${q.id}-text`);
+          if (!el) {
+            console.log(`No DOM element found for question ${q.id}`);
+            return;
+          }
+          el.classList.add("strike")
+
+          const btn = document.getElementById(q.id);
+          if (btn) {
+            btn.remove();
+          }
+
+          const answered = document.createElement("span");
+          answered.textContent = "answered";
+          el.parentElement.appendChild(answered);
+        }
+
+        askForm.onsubmit = async (ev) => {
+          ev.preventDefault();
+          try {
+            const resp = await fetch("{{.Server}}/questionnaires/{{.ID}}/questions", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ question: ev.target.question.value })
+            });
+            if (!resp.ok) alert(resp.statusText);
+          } catch (err) {
+            alert("Something went very wrong")
+            console.error(err);
+          }
+          askForm.reset();
+        }
+
+        async function upvote(id) {
+          try {
+            const resp = await fetch(`{{.Server}}/questionnaires/{{.ID}}/questions/${id}/vote`, {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+              },
+            });
+            if (!resp.ok) alert(resp.statusText);
+          } catch (err) {
+            alert("Something went very wrong")
+            console.error(err);
+          }
+        }
+
+        async function answer(id) {
+          try {
+            const resp = await fetch(`{{.Server}}/questionnaires/{{.ID}}/questions/${id}/answer`, {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+              },
+            });
+            if (!resp.ok) alert(resp.statusText);
+          } catch (err) {
+            alert("Something went very wrong")
+            console.error(err);
+          }
+        }
+
+        function attachVoteBtnHandlers() {
+          const btns = document.querySelectorAll(".vote-btn");
+          for (const btn of btns) {
+            btn.onclick = () => upvote(btn.id);
+          }
+        }
+        attachVoteBtnHandlers();
+
+        function attachAnswerBtnHandlers() {
+          const btns = document.querySelectorAll(".answer-btn");
+          for (const btn of btns) {
+            btn.onclick = () => answer(btn.id);
+          }
+        }
+        attachAnswerBtnHandlers();
+      });
+    </script>
+  </head>
+  <body>
+    <h1>{{.Title}}</h1>
+    <p>To invite people to ask questions, just share the link to this page you're currently on.</p>
+
+    <form id="askForm">
+      <input type="text" name="question" placeholder="Ask a question" value="why?" />
+      <button type="submit">Ask</button>
+    </form>
+
+    <h2>Questions</h2>
+    <ul id="questions">
+      {{range .Questions}}
+      <li>
+        <span id="{{.ID}}-text" class="{{if .Metadata.Answered}}strike{{end}}">
+          {{.Question}}
+          <span id="{{.ID}}-votes">({{.Metadata.Votes}})</span>
+        </span>
+        {{if .Metadata.Answered}}
+        <span>answered</span>
+        {{else if $.IsHost}}
+        <button class="answer-btn" id="{{.ID}}">answer</button>
+        {{else}}
+        <button class="vote-btn" id="{{.ID}}">upvote</button>
+        {{end}}
+      </li>
+      {{end}}
+    </ul>
+  </body>
+</html>

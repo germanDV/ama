@@ -1,0 +1,28 @@
+@url = http://localhost:3000
+
+### Create questionnaire
+POST {{url}}/questionnaires HTTP/1.1
+Content-Type: application/json
+Accept: application/json
+
+{
+  "title": "Questions For Me"
+}
+
+### Add question to questionnaire
+POST {{url}}/questionnaires/1718231406V6MLFMEEMIW3LG6ZMDJKDJQVQU/questions HTTP/1.1
+Content-Type: application/json
+Accept: application/json
+
+{
+  "question": "Cómo va?"
+}
+
+### Get questions
+GET {{url}}/questionnaires/1718231406V6MLFMEEMIW3LG6ZMDJKDJQVQU/questions HTTP/1.1
+Accept: application/json
+
+### Vote a question
+PUT {{url}}/questionnaires/1718231406V6MLFMEEMIW3LG6ZMDJKDJQVQU/questions/1718231420MJMJ2PDBZ7IW26UZHGJRGHFYN4/vote HTTP/1.1
+Content-Type: application/json
+Accept: application/json
