@@ -1,12 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 
 	"github.com/germandv/ama/internal/questionnaire"
-	"github.com/gorilla/websocket"
+	"github.com/germandv/ama/internal/wsmanager"
 )
 
 type MessageEvent string
@@ -80,30 +79,7 @@ func newAnswerMessage(id string) AnswerMessage {
 	}
 }
 
-var upgrader = websocket.Upgrader{
-	CheckOrigin: func(_ *http.Request) bool { return true },
-}
-
-var rooms = make(map[string]map[*websocket.Conn]bool)
-
-func printStats() {
-	for room, clients := range rooms {
-		log.Printf("room %q has %d clients", room, len(clients))
-	}
-}
-
-func broadcast(room string, data []byte) {
-	clients, found := rooms[room]
-	if !found {
-		log.Printf("room %q does not exist", room)
-		return
-	}
-	for c := range clients {
-		c.WriteMessage(1, data)
-	}
-}
-
-func wsHandler(svc questionnaire.IService) http.HandlerFunc {
+func wsHandler(wsm *wsmanager.WSManager, svc questionnaire.IService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		questionnaire := r.URL.Query().Get("questionnaire")
 		if questionnaire == "" {
@@ -111,42 +87,32 @@ func wsHandler(svc questionnaire.IService) http.HandlerFunc {
 			return
 		}
 
-		c, err := upgrader.Upgrade(w, r, nil)
+		c, err := wsm.Upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			log.Print("error upgrading connection:", err)
 			return
 		}
 
-		clients, found := rooms[questionnaire]
-		if !found {
-			clients = make(map[*websocket.Conn]bool)
-			rooms[questionnaire] = clients
-		}
-		clients[c] = true
-		printStats()
+		wsm.AddClient(questionnaire, c)
+		wsm.Stats()
 
 		defer func() {
 			c.Close()
-			delete(clients, c)
-			if len(rooms[questionnaire]) == 0 {
-				delete(rooms, questionnaire)
-				err := svc.DeleteQuestionnaire(questionnaire)
-				if err != nil {
-					fmt.Printf("error deleting questionnaire: %s\n", err)
-				}
+			wsm.RemoveClient(questionnaire, c)
+
+			count, err := wsm.CountClients(questionnaire)
+			if err == nil && count == 0 {
+				wsm.DeleteRoom(questionnaire)
+				svc.DeleteQuestionnaire(questionnaire)
 			}
-			printStats()
+
+			wsm.Stats()
 		}()
 
 		for {
 			_, _, err := c.ReadMessage()
 			if err != nil {
-				if websocket.IsCloseError(
-					err,
-					websocket.CloseNormalClosure,
-					websocket.CloseGoingAway,
-					websocket.CloseNoStatusReceived,
-				) {
+				if wsm.IsCloseError(err) {
 					log.Println("disconnection")
 					break
 				}

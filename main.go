@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/germandv/ama/internal/questionnaire"
+	"github.com/germandv/ama/internal/wsmanager"
 )
 
 func homePageHandler(w http.ResponseWriter, _ *http.Request) {
@@ -57,26 +58,23 @@ func questionnairePageHandler(svc questionnaire.IService) http.HandlerFunc {
 	}
 }
 
-func countGuests(id string) (int, error) {
-	return len(rooms[id]), nil
-}
-
 func main() {
+	wsm := wsmanager.New()
 	svc := questionnaire.NewService(questionnaire.NewInMemoryRepo())
 
-	questionnairesLimiter := globalLimiter(1, svc.CountQuestionnaires)
-	questionsLimiter := idLimiter(100, svc.CountQuestions)
-	clientLimiter := idLimiter(2, countGuests)
+	qLimiter := globalLimiter(20, svc.CountQuestionnaires)
+	qsLimiter := idLimiter(100, svc.CountQuestions)
+	cLimiter := idLimiter(100, wsm.CountClients)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /ws", wsHandler(svc))
+	mux.HandleFunc("GET /ws", wsHandler(wsm, svc))
 	mux.HandleFunc("GET /", homePageHandler)
-	mux.Handle("GET /{id}", clientLimiter(questionnairePageHandler(svc)))
-	mux.Handle("POST /questionnaires", questionnairesLimiter(newQuestionnaireHandler(svc)))
-	mux.Handle("POST /questionnaires/{id}/questions", questionsLimiter(newQuestionHandler(svc)))
+	mux.Handle("GET /{id}", cLimiter(questionnairePageHandler(svc)))
+	mux.Handle("POST /questionnaires", qLimiter(newQuestionnaireHandler(svc)))
+	mux.Handle("POST /questionnaires/{id}/questions", qsLimiter(newQuestionHandler(svc, wsm)))
 	mux.HandleFunc("GET /questionnaires/{id}/questions", getQuestionsHandler(svc))
-	mux.HandleFunc("PUT /questionnaires/{id}/questions/{question_id}/vote", voteHandler(svc))
-	mux.HandleFunc("PUT /questionnaires/{id}/questions/{question_id}/answer", answerHandler(svc))
+	mux.HandleFunc("PUT /questionnaires/{id}/questions/{question_id}/vote", voteHandler(svc, wsm))
+	mux.HandleFunc("PUT /questionnaires/{id}/questions/{question_id}/answer", answerHandler(svc, wsm))
 
 	server := &http.Server{
 		Addr:              ":3000",

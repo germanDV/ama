@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/germandv/ama/internal/questionnaire"
+	"github.com/germandv/ama/internal/wsmanager"
 )
 
 func newQuestionnaireHandler(svc questionnaire.IService) http.HandlerFunc {
@@ -42,7 +43,7 @@ func newQuestionnaireHandler(svc questionnaire.IService) http.HandlerFunc {
 	}
 }
 
-func newQuestionHandler(svc questionnaire.IService) http.HandlerFunc {
+func newQuestionHandler(svc questionnaire.IService, wsm *wsmanager.WSManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		type Req struct {
 			Question string `json:"question"`
@@ -73,7 +74,7 @@ func newQuestionHandler(svc questionnaire.IService) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		broadcast(questionnaire, jsonMsg)
+		wsm.Broadcast(questionnaire, jsonMsg)
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
@@ -107,7 +108,7 @@ func getQuestionsHandler(svc questionnaire.IService) http.HandlerFunc {
 	}
 }
 
-func voteHandler(svc questionnaire.IService) http.HandlerFunc {
+func voteHandler(svc questionnaire.IService, wsm *wsmanager.WSManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		questionnaireID := r.PathValue("id")
 		if questionnaireID == "" {
@@ -133,13 +134,13 @@ func voteHandler(svc questionnaire.IService) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		broadcast(questionnaireID, jsonMsg)
+		wsm.Broadcast(questionnaireID, jsonMsg)
 
 		w.WriteHeader(http.StatusOK)
 	}
 }
 
-func answerHandler(svc questionnaire.IService) http.HandlerFunc {
+func answerHandler(svc questionnaire.IService, wsm *wsmanager.WSManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		questionnaireID := r.PathValue("id")
 		if questionnaireID == "" {
@@ -177,7 +178,7 @@ func answerHandler(svc questionnaire.IService) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		broadcast(questionnaireID, jsonMsg)
+		wsm.Broadcast(questionnaireID, jsonMsg)
 
 		w.WriteHeader(http.StatusOK)
 	}
