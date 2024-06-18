@@ -3,9 +3,9 @@ package main
 import (
 	"encoding/json"
 	"net/http"
-	"time"
 
 	"github.com/germandv/ama/internal/questionnaire"
+	"github.com/germandv/ama/internal/web"
 	"github.com/germandv/ama/internal/wsmanager"
 )
 
@@ -15,10 +15,8 @@ func newQuestionnaireHandler(svc questionnaire.IService) http.HandlerFunc {
 			Title string `json:"title"`
 		}
 
-		var req Req
-		err := json.NewDecoder(r.Body).Decode(&req)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+		req, ok := web.DecodeBody[Req](w, r)
+		if !ok {
 			return
 		}
 
@@ -28,18 +26,8 @@ func newQuestionnaireHandler(svc questionnaire.IService) http.HandlerFunc {
 			return
 		}
 
-		http.SetCookie(w, &http.Cookie{
-			Name:     "host",
-			Value:    q.Host,
-			HttpOnly: true,
-			Secure:   true,
-			Path:     "/",
-			Expires:  time.Now().Add(24 * time.Hour),
-		})
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(q)
+		web.SetCookie(w, "host", q.Host)
+		web.JSON(w, http.StatusCreated, q)
 	}
 }
 
@@ -49,10 +37,8 @@ func newQuestionHandler(svc questionnaire.IService, wsm *wsmanager.WSManager) ht
 			Question string `json:"question"`
 		}
 
-		var req Req
-		err := json.NewDecoder(r.Body).Decode(&req)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+		req, ok := web.DecodeBody[Req](w, r)
+		if !ok {
 			return
 		}
 
@@ -76,9 +62,7 @@ func newQuestionHandler(svc questionnaire.IService, wsm *wsmanager.WSManager) ht
 		}
 		wsm.Broadcast(questionnaire, jsonMsg)
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(q)
+		web.JSON(w, http.StatusCreated, q)
 	}
 }
 
@@ -101,10 +85,7 @@ func getQuestionsHandler(svc questionnaire.IService) http.HandlerFunc {
 		}{
 			Questions: qs,
 		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(envelope)
+		web.JSON(w, http.StatusOK, envelope)
 	}
 }
 

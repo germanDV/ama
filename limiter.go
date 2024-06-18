@@ -1,8 +1,11 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
+
+	"github.com/germandv/ama/internal/web"
 )
 
 func globalLimiter(limit int, countGetter func() (int, error)) func(next http.Handler) http.Handler {
@@ -10,14 +13,12 @@ func globalLimiter(limit int, countGetter func() (int, error)) func(next http.Ha
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			current, err := countGetter()
 			if err != nil {
-				fmt.Printf("error getting current count: %s\n", err)
-				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+				web.InternalError(w, err)
 				return
 			}
 
 			if current >= limit {
-				fmt.Printf("reached limit of %d for %s %s\n", current, r.Method, r.URL.Path)
-				http.Error(w, http.StatusText(http.StatusTooManyRequests), http.StatusTooManyRequests)
+				web.TooManyRequests(w, fmt.Sprintf("reached limit of %d for %s %s", current, r.Method, r.URL.Path))
 				return
 			}
 
@@ -32,20 +33,18 @@ func idLimiter(limit int, countGetter func(id string) (int, error)) func(next ht
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			questionnaireID := r.PathValue("id")
 			if questionnaireID == "" {
-				http.Error(w, "no id provided", http.StatusBadRequest)
+				web.BadRequest(w, errors.New("no id provided"))
 				return
 			}
 
 			current, err := countGetter(questionnaireID)
 			if err != nil {
-				fmt.Printf("error getting current count: %s\n", err)
-				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+				web.InternalError(w, err)
 				return
 			}
 
 			if current >= limit {
-				fmt.Printf("reached limit of %d for %s %s\n", current, r.Method, r.URL.Path)
-				http.Error(w, http.StatusText(http.StatusTooManyRequests), http.StatusTooManyRequests)
+				web.TooManyRequests(w, fmt.Sprintf("reached limit of %d for %s %s", current, r.Method, r.URL.Path))
 				return
 			}
 

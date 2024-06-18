@@ -1,10 +1,12 @@
 package main
 
 import (
+	"errors"
 	"log"
 	"net/http"
 
 	"github.com/germandv/ama/internal/questionnaire"
+	"github.com/germandv/ama/internal/web"
 	"github.com/germandv/ama/internal/wsmanager"
 )
 
@@ -83,13 +85,13 @@ func wsHandler(wsm *wsmanager.WSManager, svc questionnaire.IService) http.Handle
 	return func(w http.ResponseWriter, r *http.Request) {
 		questionnaire := r.URL.Query().Get("questionnaire")
 		if questionnaire == "" {
-			log.Print("no questionnaire ID provided")
+			web.BadRequest(w, errors.New("no questionnaire ID provided"))
 			return
 		}
 
 		c, err := wsm.Upgrader.Upgrade(w, r, nil)
 		if err != nil {
-			log.Print("error upgrading connection:", err)
+			web.InternalError(w, errors.New("error upgrading connection"))
 			return
 		}
 
