@@ -1,10 +1,14 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/germandv/ama/internal/questionnaire"
@@ -48,12 +52,31 @@ func main() {
 		WriteTimeout:      5 * time.Second,
 	}
 
-	// TODO: add graceful shutdown
+	killCh := make(chan os.Signal, 1)
+	signal.Notify(killCh, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
+
+	go func() {
+		err := server.ListenAndServe()
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logger.Error("Server error", "err", err)
+			os.Exit(1)
+		}
+	}()
+
 	logger.Info("WS server up", "port", port)
 	logger.Info("HTTP server up", "port", port)
-	err := server.ListenAndServe()
+
+	<-killCh
+	logger.Info("Shutdown signal received")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	err := server.Shutdown(ctx)
 	if err != nil {
-		logger.Error("Server error", "err", err)
-		panic(err)
+		logger.Error("Failed to shut down gracefully", "err", err)
+		cancel()
+		os.Exit(1)
 	}
+
+	cancel()
+	logger.Info("Shutdown completed")
 }
