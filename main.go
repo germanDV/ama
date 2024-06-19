@@ -13,14 +13,16 @@ import (
 )
 
 func main() {
+	domain := "localhost"
 	port := 3000
+	secure := false
 	logLevel := slog.LevelDebug
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: logLevel,
 	}))
 
-	web := webutils.New(24*time.Hour, logger)
+	web := webutils.New(24*time.Hour, logger, domain, port, secure)
 	wsm := wsmanager.New()
 	svc := questionnaire.NewService(questionnaire.NewInMemoryRepo())
 
@@ -30,8 +32,8 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /ws", wsHandler(wsm, svc, logger, web))
-	mux.HandleFunc("GET /", homePageHandler(port))
-	mux.Handle("GET /{id}", cLimiter(questionnairePageHandler(svc, port, web)))
+	mux.HandleFunc("GET /", homePageHandler(web))
+	mux.Handle("GET /{id}", cLimiter(questionnairePageHandler(svc, web)))
 	mux.Handle("POST /questionnaires", qLimiter(newQuestionnaireHandler(svc, web)))
 	mux.Handle("POST /questionnaires/{id}/questions", qsLimiter(newQuestionHandler(svc, wsm, web)))
 	mux.HandleFunc("GET /questionnaires/{id}/questions", getQuestionsHandler(svc, web))

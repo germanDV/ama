@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"html/template"
 	"net/http"
 
@@ -10,19 +9,14 @@ import (
 	"github.com/germandv/ama/internal/webutils"
 )
 
-func homePageHandler(port int) http.HandlerFunc {
+func homePageHandler(web webutils.Web) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
 		tmpl := template.Must(template.ParseFiles("home.html"))
-		url := fmt.Sprintf("http://localhost:%d", port)
-		tmpl.Execute(w, map[string]any{"Server": url})
+		tmpl.Execute(w, map[string]any{"Server": web.GetApiURL()})
 	}
 }
 
-func questionnairePageHandler(
-	svc questionnaire.IService,
-	port int,
-	web webutils.Web,
-) http.HandlerFunc {
+func questionnairePageHandler(svc questionnaire.IService, web webutils.Web) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		tmpl := template.Must(template.ParseFiles("q.html"))
 
@@ -51,9 +45,8 @@ func questionnairePageHandler(
 		}
 
 		data := map[string]any{
-			// TODO: use `r.Host`
-			"Server":    fmt.Sprintf("http://localhost:%d", port),
-			"ServerWS":  fmt.Sprintf("ws://localhost:%d/ws?questionnaire=%s", port, meta.ID),
+			"Server":    web.GetApiURL(),
+			"ServerWS":  web.GetWebsocketURL(meta.ID),
 			"ID":        meta.ID,
 			"Title":     meta.Title,
 			"Questions": qs,

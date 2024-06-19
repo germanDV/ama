@@ -11,13 +11,35 @@ import (
 type Web struct {
 	cookieExp time.Duration
 	logger    *slog.Logger
+	domain    string
+	port      int
+	ssl       bool
 }
 
-func New(cookieExp time.Duration, logger *slog.Logger) Web {
+func New(cookieExp time.Duration, logger *slog.Logger, domain string, port int, ssl bool) Web {
 	return Web{
 		cookieExp: cookieExp,
 		logger:    logger,
+		domain:    domain,
+		port:      port,
+		ssl:       ssl,
 	}
+}
+
+func (web Web) GetApiURL() string {
+	scheme := "http"
+	if web.ssl {
+		scheme = "https"
+	}
+	return fmt.Sprintf("%s://%s:%d", scheme, web.domain, web.port)
+}
+
+func (web Web) GetWebsocketURL(roomID string) string {
+	scheme := "ws"
+	if web.ssl {
+		scheme = "wss"
+	}
+	return fmt.Sprintf("%s://%s:%d/ws?questionnaire=%s", scheme, web.domain, web.port, roomID)
 }
 
 func (web Web) SendError(w http.ResponseWriter, msg string, code int) {
