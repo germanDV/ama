@@ -1,4 +1,4 @@
-package questionnaire
+package uid
 
 import (
 	"crypto/rand"
@@ -7,7 +7,8 @@ import (
 	"time"
 )
 
-func generateID(withTimestamp bool, len int) string {
+// Generate creates a unique ID.
+func Generate(withTimestamp bool, len int) string {
 	randomBytes := make([]byte, len)
 	_, err := rand.Read(randomBytes)
 	if err != nil {

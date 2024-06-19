@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/germandv/ama/internal/questionnaire"
+	"github.com/germandv/ama/internal/uid"
 	"github.com/germandv/ama/internal/webutils"
 )
 
@@ -42,6 +43,11 @@ func questionnairePageHandler(svc questionnaire.IService, web webutils.Web) http
 		cookie, err := r.Cookie("host")
 		if err == nil && meta.Host == cookie.Value {
 			isHost = true
+		}
+
+		if !isHost {
+			voterID := uid.Generate(false, 32)
+			web.SetCookie(w, "voter", voterID)
 		}
 
 		data := map[string]any{

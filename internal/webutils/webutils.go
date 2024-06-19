@@ -68,6 +68,10 @@ func (web Web) BadRequest(w http.ResponseWriter, err error) {
 	web.SendError(w, err.Error(), http.StatusBadRequest)
 }
 
+func (web Web) Forbidden(w http.ResponseWriter) {
+	web.SendError(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+}
+
 func (web Web) SetCookie(w http.ResponseWriter, name string, value string) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     name,

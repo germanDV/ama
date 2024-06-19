@@ -20,15 +20,16 @@ func main() {
 	domain := "localhost"
 	port := 3000
 	secure := false
+	ttl := 24 * time.Hour
 	logLevel := slog.LevelDebug
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: logLevel,
 	}))
 
-	web := webutils.New(24*time.Hour, logger, domain, port, secure)
+	web := webutils.New(ttl, logger, domain, port, secure)
 	wsm := wsmanager.New()
-	svc := questionnaire.NewService(questionnaire.NewInMemoryRepo())
+	svc := questionnaire.NewService(questionnaire.NewInMemoryRepo(), ttl, logger)
 
 	qLimiter := globalLimiter(20, svc.CountQuestionnaires, logger, web)
 	qsLimiter := idLimiter(100, svc.CountQuestions, logger, web)
@@ -41,12 +42,12 @@ func main() {
 	mux.Handle("POST /questionnaires", qLimiter(newQuestionnaireHandler(svc, web)))
 	mux.Handle("POST /questionnaires/{id}/questions", qsLimiter(newQuestionHandler(svc, wsm, web)))
 	mux.HandleFunc("GET /questionnaires/{id}/questions", getQuestionsHandler(svc, web))
-	mux.HandleFunc("PUT /questionnaires/{id}/questions/{question_id}/vote", voteHandler(svc, wsm))
-	mux.HandleFunc("PUT /questionnaires/{id}/questions/{question_id}/answer", answerHandler(svc, wsm))
+	mux.HandleFunc("PUT /questionnaires/{id}/questions/{question_id}/vote", voteHandler(svc, wsm, web))
+	mux.HandleFunc("PUT /questionnaires/{id}/questions/{question_id}/answer", answerHandler(svc, wsm, web))
 
 	server := &http.Server{
 		Addr:              fmt.Sprintf(":%d", port),
-		Handler:           mux,
+		Handler:           realIP(mux),
 		ReadHeaderTimeout: 2 * time.Second,
 		ReadTimeout:       5 * time.Second,
 		WriteTimeout:      5 * time.Second,

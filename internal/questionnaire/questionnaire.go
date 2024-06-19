@@ -1,5 +1,7 @@
 package questionnaire
 
+import "github.com/germandv/ama/internal/uid"
+
 type Questionnaire struct {
 	ID    string `json:"id"`
 	Title string `json:"title"`
@@ -8,8 +10,8 @@ type Questionnaire struct {
 
 func NewQuestionnaire(title string) Questionnaire {
 	return Questionnaire{
-		ID:    generateID(true, 16),
+		ID:    uid.Generate(true, 16),
 		Title: title,
-		Host:  generateID(false, 32),
+		Host:  uid.Generate(false, 32),
 	}
 }

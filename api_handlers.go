@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/germandv/ama/internal/questionnaire"
@@ -76,13 +77,13 @@ func getQuestionsHandler(svc questionnaire.IService, web webutils.Web) http.Hand
 	return func(w http.ResponseWriter, r *http.Request) {
 		questionnaireID := r.PathValue("id")
 		if questionnaireID == "" {
-			http.Error(w, "no questionnaire ID provided", http.StatusBadRequest)
+			web.BadRequest(w, errors.New("no questionnaire ID provided"))
 			return
 		}
 
 		qs, err := svc.Get(questionnaireID)
 		if err != nil {
-			http.Error(w, "no questionnaire found", http.StatusNotFound)
+			web.NotFound(w, "questionnaire", questionnaireID)
 			return
 		}
 
@@ -95,30 +96,40 @@ func getQuestionsHandler(svc questionnaire.IService, web webutils.Web) http.Hand
 	}
 }
 
-func voteHandler(svc questionnaire.IService, wsm *wsmanager.WSManager) http.HandlerFunc {
+func voteHandler(
+	svc questionnaire.IService,
+	wsm *wsmanager.WSManager,
+	web webutils.Web,
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		questionnaireID := r.PathValue("id")
 		if questionnaireID == "" {
-			http.Error(w, "no questionnaire ID provided", http.StatusBadRequest)
+			web.BadRequest(w, errors.New("no questionnaire ID provided"))
 			return
 		}
 
 		questionID := r.PathValue("question_id")
 		if questionID == "" {
-			http.Error(w, "no questionID ID provided", http.StatusBadRequest)
+			web.BadRequest(w, errors.New("no question ID provided"))
 			return
 		}
 
-		count, err := svc.Vote(questionnaireID, questionID)
+		cookie, err := r.Cookie("voter")
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			web.Forbidden(w)
+			return
+		}
+
+		count, err := svc.Vote(questionnaireID, questionID, cookie.Value)
+		if err != nil {
+			web.BadRequest(w, err)
 			return
 		}
 
 		msg := newVoteMessage(questionID, count)
 		jsonMsg, err := json.Marshal(msg)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			web.InternalError(w, err)
 			return
 		}
 		wsm.Broadcast(questionnaireID, jsonMsg)
@@ -127,35 +138,39 @@ func voteHandler(svc questionnaire.IService, wsm *wsmanager.WSManager) http.Hand
 	}
 }
 
-func answerHandler(svc questionnaire.IService, wsm *wsmanager.WSManager) http.HandlerFunc {
+func answerHandler(
+	svc questionnaire.IService,
+	wsm *wsmanager.WSManager,
+	web webutils.Web,
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		questionnaireID := r.PathValue("id")
 		if questionnaireID == "" {
-			http.Error(w, "no questionnaire ID provided", http.StatusBadRequest)
+			web.BadRequest(w, errors.New("no questionnaire ID provided"))
 			return
 		}
 
 		questionID := r.PathValue("question_id")
 		if questionID == "" {
-			http.Error(w, "no questionID ID provided", http.StatusBadRequest)
+			web.BadRequest(w, errors.New("no question ID provided"))
 			return
 		}
 
 		meta, err := svc.GetMeta(questionnaireID)
 		if err != nil {
-			http.Error(w, "not found", http.StatusNotFound)
+			web.NotFound(w, "questionnaire", questionnaireID)
 			return
 		}
 
 		cookie, err := r.Cookie("host")
 		if err != nil || cookie.Value != meta.Host {
-			http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+			web.Forbidden(w)
 			return
 		}
 
 		err = svc.Answer(questionnaireID, questionID)
 		if err != nil {
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			web.InternalError(w, err)
 			return
 		}
 
