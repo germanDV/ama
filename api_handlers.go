@@ -5,17 +5,18 @@ import (
 	"net/http"
 
 	"github.com/germandv/ama/internal/questionnaire"
-	"github.com/germandv/ama/internal/web"
+	"github.com/germandv/ama/internal/webutils"
 	"github.com/germandv/ama/internal/wsmanager"
 )
 
-func newQuestionnaireHandler(svc questionnaire.IService) http.HandlerFunc {
+func newQuestionnaireHandler(svc questionnaire.IService, web webutils.Web) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		type Req struct {
 			Title string `json:"title"`
 		}
 
-		req, ok := web.DecodeBody[Req](w, r)
+		req := &Req{}
+		ok := web.DecodeBody(w, r, req)
 		if !ok {
 			return
 		}
@@ -31,13 +32,18 @@ func newQuestionnaireHandler(svc questionnaire.IService) http.HandlerFunc {
 	}
 }
 
-func newQuestionHandler(svc questionnaire.IService, wsm *wsmanager.WSManager) http.HandlerFunc {
+func newQuestionHandler(
+	svc questionnaire.IService,
+	wsm *wsmanager.WSManager,
+	web webutils.Web,
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		type Req struct {
 			Question string `json:"question"`
 		}
 
-		req, ok := web.DecodeBody[Req](w, r)
+		req := &Req{}
+		ok := web.DecodeBody(w, r, req)
 		if !ok {
 			return
 		}
@@ -66,7 +72,7 @@ func newQuestionHandler(svc questionnaire.IService, wsm *wsmanager.WSManager) ht
 	}
 }
 
-func getQuestionsHandler(svc questionnaire.IService) http.HandlerFunc {
+func getQuestionsHandler(svc questionnaire.IService, web webutils.Web) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		questionnaireID := r.PathValue("id")
 		if questionnaireID == "" {

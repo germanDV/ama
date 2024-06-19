@@ -2,30 +2,39 @@ package main
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/germandv/ama/internal/questionnaire"
+	"github.com/germandv/ama/internal/webutils"
 	"github.com/germandv/ama/internal/wsmanager"
 )
 
 func main() {
 	port := 3000
+	logLevel := slog.LevelDebug
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: logLevel,
+	}))
+
+	web := webutils.New(24*time.Hour, logger)
 	wsm := wsmanager.New()
 	svc := questionnaire.NewService(questionnaire.NewInMemoryRepo())
 
-	qLimiter := globalLimiter(20, svc.CountQuestionnaires)
-	qsLimiter := idLimiter(100, svc.CountQuestions)
-	cLimiter := idLimiter(100, wsm.CountClients)
+	qLimiter := globalLimiter(20, svc.CountQuestionnaires, logger, web)
+	qsLimiter := idLimiter(100, svc.CountQuestions, logger, web)
+	cLimiter := idLimiter(100, wsm.CountClients, logger, web)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /ws", wsHandler(wsm, svc))
+	mux.HandleFunc("GET /ws", wsHandler(wsm, svc, logger, web))
 	mux.HandleFunc("GET /", homePageHandler(port))
-	mux.Handle("GET /{id}", cLimiter(questionnairePageHandler(svc, port)))
-	mux.Handle("POST /questionnaires", qLimiter(newQuestionnaireHandler(svc)))
-	mux.Handle("POST /questionnaires/{id}/questions", qsLimiter(newQuestionHandler(svc, wsm)))
-	mux.HandleFunc("GET /questionnaires/{id}/questions", getQuestionsHandler(svc))
+	mux.Handle("GET /{id}", cLimiter(questionnairePageHandler(svc, port, web)))
+	mux.Handle("POST /questionnaires", qLimiter(newQuestionnaireHandler(svc, web)))
+	mux.Handle("POST /questionnaires/{id}/questions", qsLimiter(newQuestionHandler(svc, wsm, web)))
+	mux.HandleFunc("GET /questionnaires/{id}/questions", getQuestionsHandler(svc, web))
 	mux.HandleFunc("PUT /questionnaires/{id}/questions/{question_id}/vote", voteHandler(svc, wsm))
 	mux.HandleFunc("PUT /questionnaires/{id}/questions/{question_id}/answer", answerHandler(svc, wsm))
 
@@ -38,10 +47,11 @@ func main() {
 	}
 
 	// TODO: add graceful shutdown
-	log.Printf("Connect to WS on ws://localhost:%d/ws\n", port)
-	log.Printf("Use client on http://localhost:%d (browser)\n", port)
+	logger.Info("WS server up", "port", port)
+	logger.Info("HTTP server up", "port", port)
 	err := server.ListenAndServe()
 	if err != nil {
-		log.Fatal(err)
+		logger.Error("Server error", "err", err)
+		panic(err)
 	}
 }

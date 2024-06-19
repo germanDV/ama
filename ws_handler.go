@@ -2,11 +2,11 @@ package main
 
 import (
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
 
 	"github.com/germandv/ama/internal/questionnaire"
-	"github.com/germandv/ama/internal/web"
+	"github.com/germandv/ama/internal/webutils"
 	"github.com/germandv/ama/internal/wsmanager"
 )
 
@@ -81,7 +81,12 @@ func newAnswerMessage(id string) AnswerMessage {
 	}
 }
 
-func wsHandler(wsm *wsmanager.WSManager, svc questionnaire.IService) http.HandlerFunc {
+func wsHandler(
+	wsm *wsmanager.WSManager,
+	svc questionnaire.IService,
+	logger *slog.Logger,
+	web webutils.Web,
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		questionnaire := r.URL.Query().Get("questionnaire")
 		if questionnaire == "" {
@@ -115,10 +120,10 @@ func wsHandler(wsm *wsmanager.WSManager, svc questionnaire.IService) http.Handle
 			_, _, err := c.ReadMessage()
 			if err != nil {
 				if wsm.IsCloseError(err) {
-					log.Println("disconnection")
+					logger.Debug("WS client disconnected")
 					break
 				}
-				log.Println("error reading message, disconnecting:", err)
+				logger.Warn("error reading WS message, disconnecting", "err", err)
 				break
 			}
 		}

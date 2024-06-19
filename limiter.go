@@ -3,12 +3,18 @@ package main
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 
-	"github.com/germandv/ama/internal/web"
+	"github.com/germandv/ama/internal/webutils"
 )
 
-func globalLimiter(limit int, countGetter func() (int, error)) func(next http.Handler) http.Handler {
+func globalLimiter(
+	limit int,
+	countGetter func() (int, error),
+	logger *slog.Logger,
+	web webutils.Web,
+) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			current, err := countGetter()
@@ -22,13 +28,25 @@ func globalLimiter(limit int, countGetter func() (int, error)) func(next http.Ha
 				return
 			}
 
-			fmt.Printf("limit: %s %s %d/%d\n", r.Method, r.URL.Path, current+1, limit)
+			logger.Debug(
+				"rate limit stats",
+				"method", r.Method,
+				"path", r.URL.Path,
+				"current", current+1,
+				"limit", limit,
+			)
+
 			next.ServeHTTP(w, r)
 		})
 	}
 }
 
-func idLimiter(limit int, countGetter func(id string) (int, error)) func(next http.Handler) http.Handler {
+func idLimiter(
+	limit int,
+	countGetter func(id string) (int, error),
+	logger *slog.Logger,
+	web webutils.Web,
+) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			questionnaireID := r.PathValue("id")
@@ -48,7 +66,14 @@ func idLimiter(limit int, countGetter func(id string) (int, error)) func(next ht
 				return
 			}
 
-			fmt.Printf("limit: %s %s %d/%d\n", r.Method, r.URL.Path, current+1, limit)
+			logger.Debug(
+				"rate limit stats",
+				"method", r.Method,
+				"path", r.URL.Path,
+				"current", current+1,
+				"limit", limit,
+			)
+
 			next.ServeHTTP(w, r)
 		})
 	}
