@@ -57,7 +57,7 @@ func (s *Service) newBallot(id string) ballot {
 }
 
 func (s *Service) gcExpiredBallots() {
-	for range time.Tick(3 * time.Second) {
+	for range time.Tick(10 * time.Minute) {
 		now := time.Now()
 		s.logger.Debug("started gcExpiredBallots", "ballots", len(s.ballots))
 		for id, ballot := range s.ballots {

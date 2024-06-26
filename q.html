@@ -142,6 +142,15 @@
           askForm.reset();
         }
 
+        function markAsVoted(id) {
+          const el = document.getElementById(id);
+          if (!el) {
+            console.log(`No DOM element found for question ${id}`);
+            return;
+          }
+          el.setAttribute('disabled', true);
+        }
+
         async function upvote(id) {
           try {
             const resp = await fetch(`{{.Server}}/questionnaires/{{.ID}}/questions/${id}/vote`, {
@@ -150,7 +159,11 @@
                 "Content-Type": "application/json",
               },
             });
-            if (!resp.ok) alert(resp.statusText);
+            if (!resp.ok) {
+              alert(resp.statusText);
+            } else {
+              markAsVoted(id);
+            }
           } catch (err) {
             alert("Something went very wrong")
             console.error(err);
