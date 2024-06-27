@@ -17,6 +17,8 @@ type Repository interface {
 	Answer(questionnaireID string, questionID string) error
 }
 
+// TODO: create a repository using Redis for production.
+
 type InMemoryRepository struct {
 	mu             sync.RWMutex
 	questionnaires map[string]Questionnaire

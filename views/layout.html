@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Go Ask Away</title>
+    <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      outline: none;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      --primary-white: #ECEFF4;
+      --secondary-white: #D8DEE9;
+      --primary-black: #2E3440;
+      --secondary-black: #4C566A;
+      --accent: #8FBCBB;
+    }
+
+    body {
+      background: var(--primary-black);
+      color: var(--primary-white);
+      font-family: -apple-system, BlinkMacSystemFont, 'Ubuntu', 'Roboto', 'Oxygen', sans-serif;
+    }
+
+    section {
+      max-width: 760px;
+      margin: 0 auto 64px auto;
+    }
+
+    h1 {
+      font-size: 3.5em;
+      font-weight: lighter;
+      margin: 16px 0 24px 0;
+      text-align: center;
+    }
+
+    h2 {
+      font-size: 2.5em;
+      font-weight: lighter;
+      margin-bottom: 16px;
+    }
+
+    form {
+      display: grid;
+      grid-template-columns: 1fr 100px;
+    }
+
+    button {
+      font-size: 1.1em;
+      border: 2px solid var(--primary-white);
+      margin-left: 8px;
+      padding: 2px 4px;
+      cursor: pointer;
+      transition: all 0.1s ease-in-out;
+      background: var(--primary-white);
+      color: var(--primary-black);
+      &:hover {
+        transform: translate(-2px, -2px);
+        box-shadow: 4px 4px 0px 2px #000;
+      }
+      &:disabled {
+        pointer-events: none;
+        background: var(--secondary-white);
+        color: var(--secondary-black);
+      }
+    }
+
+    input {
+      font-size: 1.1em;
+      background: var(--primary-black);
+      color: var(--primary-white);
+      border: 1px solid var(--secondary-black);
+      padding: 8px 16px;
+      &:focus {
+        border: 1px solid var(--primary-white);
+      }
+    }
+
+    .vote-count {
+      font-size: 1.3em;
+      margin-left: 8px;
+      font-weight: bold;
+      background-color: var(--accent);
+      color: var(--primary-black);
+      padding: 4px 8px;
+      font-family: monospace;
+    }
+
+    .card,
+    .hint {
+      background-color: var(--secondary-black);
+      color: var(--secondary-white);
+      padding: 8px 16px;
+      margin-bottom: 16px;
+    }
+    .card {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .strike {
+      text-decoration: line-through;
+    }
+    </style>
+    {{template "script" .}}
+  </head>
+  <body>{{template "body" .}}</body>
+</html>

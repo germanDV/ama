@@ -12,14 +12,14 @@ import (
 
 func homePageHandler(web webutils.Web) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
-		tmpl := template.Must(template.ParseFiles("home.html"))
+		tmpl := template.Must(template.ParseFiles("views/layout.html", "views/home.html"))
 		tmpl.Execute(w, map[string]any{"Server": web.GetApiURL()})
 	}
 }
 
 func questionnairePageHandler(svc questionnaire.IService, web webutils.Web) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tmpl := template.Must(template.ParseFiles("q.html"))
+		tmpl := template.Must(template.ParseFiles("views/layout.html", "views/q.html"))
 
 		questionnaireID := r.PathValue("id")
 		if questionnaireID == "" {

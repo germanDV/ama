@@ -1,0 +1,49 @@
+{{define "script"}}
+<script>
+  window.addEventListener("load", () => {
+    const SERVER_URL = "{{.Server}}";
+    const form = document.getElementById("newQuestionnaireForm");
+
+    form.onsubmit = async (ev) => {
+      ev.preventDefault();
+      try {
+        const resp = await fetch("{{.Server}}/questionnaires", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ title: ev.target.title.value })
+        });
+
+        if (!resp.ok) {
+          alert(resp.statusText);
+          return;
+        }
+
+        const res = await resp.json()
+        if (!res?.id) {
+          alert("Something went wrong");
+          return;
+        }
+
+        location.href = location.origin + "/" + res.id
+      } catch (err) {
+        alert("Something went very wrong")
+        console.error(err);
+      }
+      form.reset();
+    }
+  });
+</script>
+{{end}}
+
+{{define "body"}}
+<section>
+  <h1>Ask Away</h1>
+  <h2>Start a new blank questionnaire and share it with your audience</h2>
+  <form id="newQuestionnaireForm">
+    <input type="text" name="title" placeholder="Give your questionnaire a title" required />
+    <button type="submit">Let's Do It</button>
+  </form>
+<section>
+{{end}}
