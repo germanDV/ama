@@ -110,7 +110,6 @@ func wsHandler(
 			count, err := wsm.CountClients(questionnaire)
 			if err == nil && count == 0 {
 				wsm.DeleteRoom(questionnaire)
-				svc.DeleteQuestionnaire(questionnaire)
 			}
 
 			wsm.Stats()

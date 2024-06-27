@@ -12,12 +12,11 @@ type Repository interface {
 	GetQuestionnaire(questionnaireID string) (Questionnaire, error)
 	CountQuestionnaires() (int, error)
 	CountQuestions(questionnaireID string) (int, error)
-	DeleteQuestionnaire(questionnaireID string) error
 	Vote(questionnaireID string, questionID string) (uint16, error)
 	Answer(questionnaireID string, questionID string) error
 }
 
-// TODO: create a repository using Redis for production.
+// TODO: create a repository using Redis and put a TTL on the questionnaires and questions.
 
 type InMemoryRepository struct {
 	mu             sync.RWMutex
@@ -122,10 +121,4 @@ func (r *InMemoryRepository) CountQuestionnaires() (int, error) {
 
 func (r *InMemoryRepository) CountQuestions(questionnaireID string) (int, error) {
 	return len(r.questions[questionnaireID]), nil
-}
-
-func (r *InMemoryRepository) DeleteQuestionnaire(questionnaireID string) error {
-	delete(r.questions, questionnaireID)
-	delete(r.questionnaires, questionnaireID)
-	return nil
 }

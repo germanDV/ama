@@ -45,7 +45,13 @@ func questionnairePageHandler(svc questionnaire.IService, web webutils.Web) http
 			isHost = true
 		}
 
-		if !isHost {
+		hasVoterCookie := false
+		_, err = r.Cookie("voter")
+		if err == nil {
+			hasVoterCookie = true
+		}
+
+		if !isHost && !hasVoterCookie {
 			voterID := uid.Generate(false, 32)
 			web.SetCookie(w, "voter", voterID)
 		}

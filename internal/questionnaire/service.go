@@ -16,11 +16,11 @@ type IService interface {
 	GetMeta(questionnaireID string) (Questionnaire, error)
 	CountQuestionnaires() (int, error)
 	CountQuestions(questionnaireID string) (int, error)
-	DeleteQuestionnaire(questionnaireID string) error
 	Vote(questionnaireID string, questionID string, voterID string) (uint16, error)
 	Answer(questionnaireID string, questionID string) error
 }
 
+// ballot keeps track of who voted which questions.
 type ballot struct {
 	id         string
 	expiration time.Time
@@ -125,8 +125,4 @@ func (s *Service) CountQuestionnaires() (int, error) {
 
 func (s *Service) CountQuestions(questionnaireID string) (int, error) {
 	return s.repo.CountQuestions(questionnaireID)
-}
-
-func (s *Service) DeleteQuestionnaire(questionnaireID string) error {
-	return s.repo.DeleteQuestionnaire(questionnaireID)
 }
