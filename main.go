@@ -17,24 +17,19 @@ import (
 )
 
 func main() {
-	// TODO: get from environment
-	domain := "localhost"
-	port := 3000
-	secure := false
-	ttl := 24 * time.Hour
-	redisHost := "localhost"
-	redisPort := 6379
-	redisPass := ""
-	logLevel := slog.LevelDebug
+	cfg, err := loadConfig()
+	if err != nil {
+		panic(err)
+	}
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: logLevel,
+		Level: cfg.LogLevel,
 	}))
 
-	web := webutils.New(ttl, logger, domain, port, secure)
+	web := webutils.New(cfg.TTL, logger, cfg.Domain, cfg.Port, cfg.Secure)
 	wsm := wsmanager.New()
-	repo := questionnaire.NewRedisRepo(redisHost, redisPort, redisPass, ttl)
-	svc := questionnaire.NewService(repo, ttl, logger)
+	repo := questionnaire.NewRedisRepo(cfg.RedisHost, cfg.RedisPort, cfg.RedisPass, cfg.TTL)
+	svc := questionnaire.NewService(repo, cfg.TTL, logger)
 
 	qLimiter := globalLimiter(20, svc.CountQuestionnaires, logger, web)
 	qsLimiter := idLimiter(100, svc.CountQuestions, logger, web)
@@ -51,7 +46,7 @@ func main() {
 	mux.HandleFunc("PUT /questionnaires/{id}/questions/{question_id}/answer", answerHandler(svc, wsm, web))
 
 	server := &http.Server{
-		Addr:              fmt.Sprintf(":%d", port),
+		Addr:              fmt.Sprintf(":%d", cfg.Port),
 		Handler:           realIP(mux),
 		ReadHeaderTimeout: 2 * time.Second,
 		ReadTimeout:       5 * time.Second,
@@ -69,14 +64,14 @@ func main() {
 		}
 	}()
 
-	logger.Info("WS server up", "port", port)
-	logger.Info("HTTP server up", "port", port)
+	logger.Info("WS server up", "port", cfg.Port)
+	logger.Info("HTTP server up", "port", cfg.Port)
 
 	<-killCh
 	logger.Info("Shutdown signal received")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	err := server.Shutdown(ctx)
+	err = server.Shutdown(ctx)
 	if err != nil {
 		logger.Error("Failed to shut down gracefully", "err", err)
 		cancel()
