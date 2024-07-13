@@ -17,10 +17,14 @@ import (
 )
 
 func main() {
+	// TODO: get from environment
 	domain := "localhost"
 	port := 3000
 	secure := false
 	ttl := 24 * time.Hour
+	redisHost := "localhost"
+	redisPort := 6379
+	redisPass := ""
 	logLevel := slog.LevelDebug
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
@@ -29,7 +33,8 @@ func main() {
 
 	web := webutils.New(ttl, logger, domain, port, secure)
 	wsm := wsmanager.New()
-	svc := questionnaire.NewService(questionnaire.NewInMemoryRepo(), ttl, logger)
+	repo := questionnaire.NewRedisRepo(redisHost, redisPort, redisPass, ttl)
+	svc := questionnaire.NewService(repo, ttl, logger)
 
 	qLimiter := globalLimiter(20, svc.CountQuestionnaires, logger, web)
 	qsLimiter := idLimiter(100, svc.CountQuestions, logger, web)

@@ -7,7 +7,7 @@ type Metadata struct {
 
 type Question struct {
 	ID            string   `json:"id"`
-	Questionnaire string   `json:"-"`
+	Questionnaire string   `json:"questionnaire"`
 	Question      string   `json:"question"`
 	Metadata      Metadata `json:"metadata"`
 }
